@@ -3,6 +3,7 @@ package com.patien.mspatien.Controller;
 import com.patien.mspatien.DTO.*;
 
 import com.patien.mspatien.Kafka.KafkaPatientProducer;
+import com.patien.mspatien.Kafka.KafkaStringProducer;
 import com.patien.mspatien.Service.PatientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,8 @@ public class PatientController {
 
     private final KafkaPatientProducer producer;
 
+
+    private final KafkaStringProducer kafkaStringProducer;
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PatientResponseDto createPatient(@RequestBody PatientRequestDto patientRequestDto) {
@@ -76,6 +79,12 @@ public class PatientController {
 
         producer.sendPatientMessage(patientDTO);
         return ResponseEntity.ok("PatientDTO envoyé à Kafka: " + patientDTO.toString());
+    }
+
+    @PostMapping("/sendSstring")
+    public ResponseEntity<String> sendSimpleMessage(@RequestBody String message) {
+        kafkaStringProducer.sendSimpleMessage(message);
+        return ResponseEntity.ok("Message simple envoyé à Kafka: " + message);
     }
 
 }

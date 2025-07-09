@@ -1,0 +1,127 @@
+services:
+  # Config Server
+  config-server:
+    build:
+      context: ./configProp
+    ports:
+      - "8888:8888"
+    networks:
+      - ms-network
+
+  # Eureka Server (Discovery)
+  discoveryserver:
+    build:
+      context: ./ms-discoveryServer
+    ports:
+      - "8761:8761"
+    depends_on:
+      - config-server
+    networks:
+      - ms-network
+
+  # API Gateway
+  gateway:
+    build:
+      context: ./ApiGateWay
+    ports:
+      - "8222:8222"
+    depends_on:
+      - discoveryserver
+      - config-server
+    networks:
+      - ms-network
+
+  # PostgreSQL database for ms-patien
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: patienDB
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: shnaider10*
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ms-network
+
+  # MongoDB for rendezvous
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ms-network
+
+  # Zookeeper
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - ms-network
+
+  # Kafka
+  kafka:
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    depends_on:
+      - zookeeper
+    networks:
+      - ms-network
+
+  # ms-patien microservice
+  ms-patien:
+    build:
+      context: ./ms-patien
+    ports:
+      - "8081:8081"
+    depends_on:
+      - discoveryserver
+      - config-server
+      - postgres
+      - kafka
+      - mongodb
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_USERNAME: postgres
+      DB_PASSWORD: shnaider10*
+    networks:
+      - ms-network
+
+  # rendezvous microservice
+  rendezvous:
+    build:
+      context: ./rendezvous
+    ports:
+      - "8082:8082"
+    depends_on:
+      - discoveryserver
+      - config-server
+      - mongodb
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MONGO_USERNAME: ""
+      MONGO_PASSWORD: ""
+    networks:
+      - ms-network
+
+volumes:
+  postgres_data:
+  mongo_data:
+
+networks:
+  ms-network:
+    driver: bridge
